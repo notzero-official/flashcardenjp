@@ -1,0 +1,2038 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash Card</title>
+    <style>
+        /* --- GLOBAL VARIABLES & FONT --- */
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+        
+        :root {
+            --btn-orange: linear-gradient(to right, #ffca28, #ff9800);
+            --btn-green: linear-gradient(to right, #aed581, #7cb342);
+            --btn-red: linear-gradient(to right, #ff8a65, #e64a19);
+            --btn-blue: linear-gradient(to right, #b3e5fc, #81d4fa);
+            --btn-yellow-solid: #ffca28;
+            --text-dark: #222;
+
+            --app-bg: rgba(255, 255, 255, 0.55);
+            --app-border: 1px solid rgba(255, 255, 255, 0.8);
+            --app-shadow: 0 20px 50px rgba(2, 132, 199, 0.15);
+            --app-filter: blur(12px);
+            --app-radius: 30px;
+
+            --topbar-bg: rgba(255, 255, 255, 0.95);
+            --topbar-title: #0284c7;
+            --topbar-line: #ccc;
+
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --card-border: 2px solid transparent;
+            --card-radius: 15px;
+            --card-shadow: 0 10px 20px rgba(2, 132, 199, 0.1);
+            --card-hover-y: -5px;
+            --card-hover-border: #38bdf8;
+            --card-title-color: #111;
+            
+            --nav-circle-size: 60px;
+            --nav-circle-bg: rgba(255, 255, 255, 0.95);
+            --nav-circle-color: #0284c7;
+            --nav-circle-shadow: 0 5px 15px rgba(2, 132, 199, 0.2);
+            
+            --flip-border: 4px solid rgba(186, 230, 253, 0.8);
+            --flip-back-border: 4px solid #ffcc80;
+            --flip-text-color: #0369a1;
+        }
+
+        body.theme-jp {
+            --card-hover-border: #ffb6c1;
+            --flip-back-border: 4px solid #f8bbd0;
+            --topbar-line: #ffb6c1;
+        }
+        body.theme-en {
+            --card-hover-border: #4db6ac;
+            --flip-back-border: 4px solid #b2dfdb;
+            --topbar-line: #b2dfdb;
+        }
+
+        * { box-sizing: border-box; font-family: 'Nunito', sans-serif; }
+        
+        body {
+            margin: 0; padding: 0;
+            background: linear-gradient(-45deg, #f0f9ff, #e0f2fe, #bae6fd, #e0f2fe) !important;
+            background-size: 400% 400% !important;
+            animation: gradientBG 15s ease infinite !important;
+            height: 100vh; width: 100vw;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* --- SCREEN TRANSITION ANIMATION --- */
+        @keyframes fadeInScreen {
+            0% { opacity: 0; transform: scale(0.96) translateY(15px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        #app {
+            width: 100%; max-width: 900px; height: 95vh; max-height: 800px;
+            position: relative; overflow: hidden;
+            background: var(--app-bg);
+            backdrop-filter: var(--app-filter);
+            border-radius: var(--app-radius); 
+            border: var(--app-border);
+            box-shadow: var(--app-shadow);
+        }
+
+        .screen {
+            display: none; width: 100%; height: 100%;
+            flex-direction: column; padding: 20px;
+            position: absolute; top: 0; left: 0;
+        }
+        .screen.active { 
+            display: flex; 
+            animation: fadeInScreen 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+        }
+
+        button { cursor: pointer; border: none; font-weight: bold; transition: transform 0.1s, box-shadow 0.2s; }
+        button:active { transform: scale(0.95); }
+        
+        .btn-back {
+            background: var(--btn-yellow-solid); color: #000;
+            padding: 8px 15px; border-radius: 20px; font-size: 14px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1); letter-spacing: 1px;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn-action { padding: 10px 20px; border-radius: 10px; color: #000; font-size: 14px; box-shadow: 1px 1px 4px rgba(0,0,0,0.1); transition: background 0.2s;}
+        .btn-add { background: var(--btn-green); }
+        .btn-del { background: var(--btn-red); color: white; }
+        .btn-save { background: var(--btn-orange); border-radius: 15px; padding: 15px; font-size: 16px; }
+
+        .btn-undo { background: #cbd5e1; color: #0f172a; transition: all 0.2s; }
+        .btn-undo:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-undo:not(:disabled):hover { background: #94a3b8; color: #fff; }
+        
+        .close-x {
+            position: absolute; top: 15px; left: 15px; background: #fee2e2; border: none; color: #ef4444; font-size: 16px; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: background 0.2s;
+        }
+        .close-x:hover { background: #fca5a5; }
+
+        .btn-info {
+            position: absolute; top: 20px; right: 20px; width: 45px; height: 45px; border-radius: 50%;
+            background: rgba(255,255,255,0.9); color: #0284c7; font-size: 22px; display: flex; align-items: center; justify-content: center;
+            border: 2px solid #7dd3fc; z-index: 10; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.2); transition: all 0.2s;
+        }
+        .btn-info:hover { background: #e0f2fe; transform: scale(1.1); }
+
+        .top-bar {
+            background: var(--topbar-bg); border-radius: 20px; padding: 15px 25px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.1); margin-bottom: 15px;
+        }
+        .top-bar-left { display: flex; align-items: center; gap: 15px; }
+        .top-bar-right { display: flex; align-items: center; gap: 10px; }
+        .top-bar h1 { font-size: 28px; margin: 0; font-weight: 900; color: var(--topbar-title); }
+        .vertical-line { width: 2px; height: 40px; background: var(--topbar-line); margin: 0 10px; }
+
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 20px; }
+        .sort-btn {
+            background: var(--topbar-bg); border-radius: 15px; padding: 10px 20px; color: #0369a1;
+            font-size: 16px; font-weight: bold; border: none; display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 4px 10px rgba(2, 132, 199, 0.1); outline: none;
+        }
+        .search-box {
+            background: var(--topbar-bg); border-radius: 15px; flex-grow: 1;
+            padding: 10px 20px; display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 4px 10px rgba(2, 132, 199, 0.1);
+        }
+        .search-box input { border: none; background: transparent; font-size: 16px; width: 100%; outline: none; color: #0369a1; font-weight: bold;}
+        .search-box input::placeholder { color: #7dd3fc; }
+
+        .grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px; overflow-y: auto; padding-bottom: 50px; flex-grow: 1;
+        }
+        .grid::-webkit-scrollbar { width: 8px; }
+        .grid::-webkit-scrollbar-thumb { background: rgba(2, 132, 199, 0.3); border-radius: 10px; }
+        
+        .item-card {
+            background: var(--card-bg); border-radius: var(--card-radius); padding: 25px 20px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;
+            box-shadow: var(--card-shadow); min-height: 150px;
+            transition: transform 0.2s, border-color 0.2s; border: var(--card-border);
+        }
+        .item-card:hover { transform: translateY(var(--card-hover-y)); border-color: var(--card-hover-border); }
+        .item-card h2 { font-size: 24px; margin: 0 0 15px 0; text-align: center; color: var(--card-title-color); font-weight: 700; }
+        .item-card h3 { font-size: 22px; margin: 0 0 10px 0; text-align: center; font-weight: 900; color: #111;}
+        .item-card p { font-size: 16px; margin: 0 0 20px 0; text-align: center; color: #555; font-style: italic; }
+        .item-btn {
+            background: var(--btn-orange); width: 100%; padding: 10px; border-radius: 10px;
+            font-size: 16px; margin-top: auto; color: #111; font-weight: bold;
+        }
+        .round-checkbox {
+            appearance: none; width: 22px; height: 22px; border: 2px solid var(--text-dark);
+            border-radius: 50%; position: absolute; top: 10px; left: 10px; background: white; cursor: pointer;
+        }
+        .round-checkbox:checked { background: var(--text-dark); border-color: var(--text-dark); }
+        .round-checkbox:checked::after { content: '✓'; color: white; position: absolute; left: 4px; top: -1px; font-size: 14px; }
+
+        .study-area { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; flex-grow: 1; overflow-y: auto; padding-top: 10px; padding-bottom: 30px;}
+        .study-area::-webkit-scrollbar { width: 6px; }
+        .study-area::-webkit-scrollbar-thumb { background: rgba(2, 132, 199, 0.3); border-radius: 10px; }
+        
+        .study-nav { display: flex; align-items: center; justify-content: center; gap: 40px; margin-top: 30px; }
+        .nav-circle {
+            width: var(--nav-circle-size); height: var(--nav-circle-size); 
+            background: var(--nav-circle-bg); color: var(--nav-circle-color); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: bold;
+            box-shadow: var(--nav-circle-shadow);
+        }
+        .flip-btn { color: var(--flip-text-color); font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 2px 10px rgba(255,255,255,0.8); }
+        
+        .flip-container { width: 280px; height: 380px; perspective: 1000px; cursor: pointer; margin-top: 20px;}
+        .flip-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+        .flip-container.flipped .flip-inner { transform: rotateY(180deg); }
+        
+        .card-anim-out-left { animation: slideOutL 0.25s forwards; }
+        .card-anim-in-right { animation: slideInR 0.25s forwards; }
+        .card-anim-out-right { animation: slideOutR 0.25s forwards; }
+        .card-anim-in-left { animation: slideInL 0.25s forwards; }
+        @keyframes slideOutL { to { transform: translateX(-60px); opacity: 0; } }
+        @keyframes slideInR { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOutR { to { transform: translateX(60px); opacity: 0; } }
+        @keyframes slideInL { from { transform: translateX(-60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        .flip-front, .flip-back {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            background: var(--card-bg); border-radius: 20px; padding: 20px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; box-shadow: 0 15px 30px rgba(2, 132, 199, 0.2);
+            border: var(--flip-border);
+        }
+        .flip-back { transform: rotateY(180deg); border: var(--flip-back-border); }
+        .study-text { font-size: 40px; font-weight: bold; text-align: center; word-break: break-word; color: #111;}
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 132, 199, 0.4); z-index: 100; justify-content: center; align-items: center;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.2s ease;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            position: relative;
+            background: var(--card-bg); padding: 40px 20px 20px 20px; border-radius: 20px; width: 90%; max-width: 500px;
+            display: flex; flex-direction: column; gap: 15px; box-shadow: 0 20px 50px rgba(2, 132, 199, 0.3); color: #111;
+            max-height: 90vh; overflow-y: auto;
+        }
+        .modal-content input[type="text"], .quiz-input { padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; outline: none; background: #fff; color: #222;}
+        .modal-content input[type="text"]:focus, .quiz-input:focus { border-color: #0284c7; }
+        
+        canvas { border: 2px solid #0284c7; border-radius: 10px; background: #fff; touch-action: none; cursor: crosshair; width: 100%; height: 120px; }
+        .ocr-suggestions { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0; min-height: 45px; align-items: center;}
+        .ocr-word { background: #e0f2fe; color: #0369a1; padding: 8px 15px; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; white-space: nowrap; transition: background 0.2s; border: 1px solid #bae6fd;}
+        .ocr-word:hover { background: #bae6fd; }
+        
+        #menu-ui { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; height: 100%; }
+        .menu-title { text-align: center; color: #0f172a; font-size: 55px; line-height: 1.2; font-weight: 900; z-index: 5; position: relative; letter-spacing: -1px; text-shadow: 0 4px 15px rgba(255,255,255,0.8); }
+        .menu-btn { background: rgba(255,255,255,0.95); padding: 15px 40px; font-size: 24px; border-radius: 15px; width: 350px; border: none; box-shadow: 0 8px 20px rgba(2, 132, 199, 0.15); transition: transform 0.2s;}
+        .menu-btn:hover { transform: translateY(-3px); box-shadow: 0 12px 25px rgba(2, 132, 199, 0.25); }
+        
+        .jp-deco { display: none; }
+        body.theme-jp .jp-deco { display: block; }
+
+        .romaji-tools-class { display: none; flex-direction: column; gap: 10px; background: #f0f9ff; padding: 10px; border-radius: 10px; color: #0f172a; border: 1px solid #bae6fd;}
+        .romaji-options { display: flex; gap: 15px; font-weight: bold; font-size: 14px; }
+
+        /* --- QUIZ STYLES --- */
+        .quiz-container { background: var(--card-bg); border-radius: 20px; padding: 30px; width: 100%; max-width: 600px; box-shadow: 0 15px 30px rgba(2, 132, 199, 0.15); margin: auto; text-align: center;}
+        .quiz-question { font-size: 26px; font-weight: bold; margin-bottom: 20px; color: #0369a1; }
+        .quiz-input { width: 100%; font-size: 20px; text-align: center; margin-bottom: 15px; border-color: #7dd3fc;}
+        .quiz-feedback { margin: 15px 0; font-size: 20px; font-weight: bold; padding: 15px; border-radius: 10px; display: none; }
+        .quiz-stats-box { background: var(--card-bg); padding: 20px; border-radius: 15px; font-size: 18px; line-height: 1.8; text-align: left; width: 100%; max-width: 700px; box-shadow: 0 10px 20px rgba(2, 132, 199, 0.15); color: #0f172a; margin-bottom: 20px;}
+        
+        .mc-btn { transition: all 0.2s; cursor: pointer; color: #0f172a; font-weight: bold; border-radius: 10px; }
+        .mc-btn:hover:not(:disabled) { background: #e0f2fe !important; border-color: #38bdf8 !important;}
+        .mc-btn:disabled { opacity: 0.8; cursor: not-allowed; }
+
+        .detail-item { padding: 15px; margin-bottom: 10px; border-radius: 10px; text-align: left; background: #fff; color: #333; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.1); border-left: 6px solid #ccc; font-size: 16px;}
+        .detail-correct { border-left-color: #16a34a; background: #f0fdf4;}
+        .detail-wrong { border-left-color: #ef4444; background: #fef2f2;}
+        .detail-unanswered { border-left-color: #f97316; background: #fff7ed;}
+
+        /* --- MUSIC PLAYER & EMOJI STYLES --- */
+        .music-player {
+            position: fixed; bottom: 20px; right: 20px; display: flex; align-items: center; background: rgba(255,255,255,0.9); padding: 10px 15px; border-radius: 30px; box-shadow: 0 10px 25px rgba(2, 132, 199, 0.2); gap: 10px; z-index: 50; border: 1px solid #e0f2fe; backdrop-filter: blur(5px);
+        }
+        .disk-wrapper { position: relative; width: 40px; height: 40px; }
+        .disk-icon {
+            width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle, #111 20%, #333 30%, #111 40%, #333 50%, #111 60%, #333 70%, #111 80%); display: flex; justify-content: center; align-items: center; border: 2px solid #0284c7; box-shadow: 0 0 10px rgba(0,0,0,0.2); cursor: pointer; position: relative; z-index: 2;
+        }
+        .disk-inner { width: 12px; height: 12px; background: #e0f2fe; border-radius: 50%; border: 1px solid #ccc;}
+        .spin { animation: spinDisk 4s linear infinite; }
+        @keyframes spinDisk { 100% { transform: rotate(360deg); } }
+
+        .floating-note {
+            position: absolute; font-size: 18px; pointer-events: none;
+            animation: floatNote 2s ease-out forwards; z-index: 1;
+            left: 50%; top: 50%; transform: translate(-50%, -50%);
+        }
+        @keyframes floatNote {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+            100% { transform: translate(calc(-50% + var(--dx)), -60px) scale(1.5); opacity: 0; }
+        }
+
+        #playlist-container::-webkit-scrollbar { width: 6px; }
+        #playlist-container::-webkit-scrollbar-thumb { background: rgba(2, 132, 199, 0.3); border-radius: 10px; }
+
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* --- MOBILE RESPONSIVE TWEAKS --- */
+        @media (max-width: 600px) {
+            body { padding: 0; }
+            #app { height: 100vh; max-height: 100vh; border-radius: 0; border: none; }
+            .screen { padding: 10px; }
+            .btn-info { top: 15px; right: 15px; width: 40px; height: 40px; font-size: 20px; z-index: 20;}
+            .top-bar { padding: 10px 15px; flex-direction: column; gap: 10px; align-items: stretch; }
+            
+            .top-bar-left { flex-direction: column; align-items: flex-start; width: 100%; gap: 10px; }
+            .top-bar-left > div:last-child { width: 100%; }
+            .top-bar-left > div:last-child > div { display: flex; flex-direction: row; flex-wrap: wrap; gap: 5px; margin-top: 5px; width: 100%;}
+            .btn-action { padding: 8px 12px; font-size: 13px; flex: 1; text-align: center;}
+            
+            .top-bar h1 { font-size: 22px; }
+            .top-bar-right { width: 100%; justify-content: space-between; display: flex; gap: 10px;}
+            .vertical-line { display: none; }
+            .filter-bar { flex-direction: column; gap: 10px; }
+            .sort-btn { width: 100%; justify-content: center; }
+            .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; padding-bottom: 70px; }
+            .item-card { padding: 15px 10px; min-height: 120px; }
+            .item-card h2 { font-size: 18px; }
+            .item-card h3 { font-size: 20px; }
+            .menu-title { font-size: 40px; }
+            .menu-btn { width: 90vw; max-width: 320px; font-size: 18px; padding: 15px 20px; }
+            .flip-container { width: 250px; height: 340px; margin-top: 10px;}
+            .study-text { font-size: 30px; }
+            .study-nav { gap: 20px; margin-top: 20px; }
+            .nav-circle { width: 50px; height: 50px; font-size: 24px; }
+            .screen[id*="edit"] .btn-back, .screen[id*="learn"] .btn-back { position: fixed; bottom: 20px; left: 20px; z-index: 99; }
+            
+            .modal-content { width: 95%; max-height: 95vh; padding: 40px 15px 15px 15px; }
+            .close-x { z-index: 101; top: 10px; left: 10px; }
+            
+            .quiz-question { font-size: 20px; }
+            .quiz-container { padding: 20px; }
+            .quiz-stats-box { font-size: 16px; padding: 15px; }
+            .detail-item { font-size: 14px; padding: 10px; }
+            .music-player { bottom: 10px; right: 10px; padding: 8px 10px; z-index: 90;}
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="screen-super" class="screen active">
+        <button class="btn-info" onclick="showIntro(0)" title="Hướng dẫn sử dụng">ℹ️</button>
+        <div id="menu-ui">
+            <div class="menu-title" style="margin-bottom: 20px;">FLASH CARD<br>🎓</div>
+            <div style="display:flex; flex-direction:column; gap:20px;">
+                <button class="menu-btn" onclick="selectApp('jp')" style="color: #0369a1; border: 2px solid #38bdf8;">🇯🇵 Flash Card Nhật Bản</button>
+                <button class="menu-btn" onclick="selectApp('en')" style="color: #0f766e; border: 2px solid #5eead4;">🇬🇧 Flash Card Tiếng Anh</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-menu" class="screen">
+        <button class="btn-info" onclick="showIntro(0)" title="Hướng dẫn sử dụng">ℹ️</button>
+        <div style="position: absolute; top: 20px; left: 20px; z-index: 10;">
+            <button class="btn-back" onclick="navTo('screen-super')">◀ MENU</button>
+        </div>
+        <div id="menu-ui">
+            <div style="position:relative;">
+                <div class="jp-deco" style="position:absolute; top:-25px; left:-40px; width:100px; height:120px; background:rgba(255,255,255,0.6); border:2px solid #fff; transform:rotate(-15deg); border-radius:10px; box-shadow: 2px 2px 10px rgba(2,132,199,0.15);"></div>
+                <div class="jp-deco" style="position:absolute; top:-15px; left:-10px; width:100px; height:120px; background:rgba(255,255,255,0.8); border:2px solid #fff; transform:rotate(-5deg); border-radius:10px; box-shadow: 2px 2px 10px rgba(2,132,199,0.15);"></div>
+                <div class="jp-deco" style="position:absolute; top:-20px; right:-40px; width:100px; height:120px; background:rgba(255,255,255,0.9); border:2px solid #fff; transform:rotate(15deg); border-radius:10px; box-shadow: 2px 2px 10px rgba(2,132,199,0.15);"></div>
+                <div class="menu-title" id="main-menu-title">FLASH CARD<br>JAPAN 🇯🇵</div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:20px; margin-top: 40px; z-index: 5;">
+                <button class="menu-btn" id="btn-learn-text" onclick="navTo('screen-learn-select')" style="color:#0f172a">Học Flash Card</button>
+                <button class="menu-btn" id="btn-edit-text" onclick="navTo('screen-edit-select')" style="color:#0f172a">Quản lý Flash Card</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-learn-select" class="screen">
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <button class="btn-back" onclick="navTo('screen-menu')">◀ QUAY LẠI</button>
+                <h1 id="learn-title">Học Flash Card</h1>
+            </div>
+        </div>
+        <div class="filter-bar">
+            <select class="sort-btn" id="sort-learn" onchange="renderFolders('learn')">
+                <option value="recent">⬇ Mới nhất / Tạo gần đây</option>
+                <option value="az">A-Z</option>
+                <option value="za" id="opt-za-learn">Z-A</option>
+            </select>
+            <div class="search-box">
+                <span>🔍</span>
+                <input type="text" id="search-learn" placeholder="Tìm kiếm..." oninput="renderFolders('learn')">
+            </div>
+        </div>
+        <div class="grid" id="grid-learn"></div>
+    </div>
+
+    <div id="screen-study" class="screen">
+        <div style="position: absolute; top: 20px; left: 20px; z-index: 10;">
+            <button class="btn-back" onclick="exitStudyMode()">◀ THOÁT</button>
+        </div>
+        <div class="study-area" style="justify-content: center; padding-top: 0;">
+            <div class="flip-container" id="study-card" onclick="this.classList.toggle('flipped');">
+                <div class="flip-inner">
+                    <div class="flip-front"><div class="study-text" id="study-term"></div></div>
+                    <div class="flip-back"><div class="study-text" id="study-def"></div></div>
+                </div>
+            </div>
+            <div class="study-nav">
+                <button class="nav-circle" onclick="changeCard(-1)">←</button>
+                <div class="flip-btn" id="flip-btn-text">⤵ LẬT THẺ!</div>
+                <button class="nav-circle" onclick="changeCard(1)">→</button>
+            </div>
+            <div style="margin-top:20px; font-weight:bold; font-size:20px; color: #0369a1; text-shadow: 0 2px 10px rgba(255,255,255,0.9);" id="study-counter">1/10</div>
+        </div>
+        
+        <div class="music-player" id="music-widget" style="display:none;">
+            <div class="disk-wrapper">
+                <div class="disk-icon" id="music-disk" onclick="togglePlayMusic()"><div class="disk-inner"></div></div>
+            </div>
+            <div style="display:flex; flex-direction:column; width: 100px;">
+                <span id="music-title" style="font-size:12px; font-weight:bold; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Nhạc nền</span>
+                <input type="range" id="music-vol" min="0" max="1" step="0.1" value="0.5" onchange="changeVolume(this.value)">
+            </div>
+            <button onclick="document.getElementById('modal-music').classList.add('active')" style="background:transparent; font-size:20px;">⚙️</button>
+        </div>
+        <audio id="bg-audio"></audio>
+    </div>
+
+    <div id="screen-edit-select" class="screen">
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <h1 id="edit-title">Quản lý Flash Card</h1>
+                <div class="vertical-line"></div>
+                <div style="display:flex; flex-direction:column; gap:5px; width: 100%;">
+                    <button class="btn-action btn-add" id="btn-add-folder" onclick="createFolder()">Thêm Thư Mục</button>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-action btn-del" style="flex:1" id="btn-del-folder" onclick="deleteSelectedFolders()">Xóa Thư Mục</button>
+                        <button class="btn-action btn-undo" id="btn-undo-folder" onclick="undoLastAction('folder')" disabled title="Phục hồi thư mục vừa xóa">↺ Hoàn tác</button>
+                    </div>
+                </div>
+            </div>
+            <div class="top-bar-right">
+                <button class="btn-action" style="background:#81d4fa; padding:10px 15px;" onclick="exportData()">Xuất File</button>
+                <button class="btn-action" style="background:#b2dfdb; padding:10px 15px;" onclick="document.getElementById('import-file').click()">Nhập File</button>
+                <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(this)">
+            </div>
+        </div>
+        <div class="filter-bar">
+            <select class="sort-btn" id="sort-edit" onchange="renderFolders('edit')">
+                <option value="recent">⬇ Mới nhất / Tạo gần đây</option>
+                <option value="az">A-Z</option>
+                <option value="za" id="opt-za-edit">Z-A</option>
+            </select>
+            <div class="search-box">
+                <span>🔍</span>
+                <input type="text" id="search-edit" placeholder="Tìm thư mục..." oninput="renderFolders('edit')">
+            </div>
+        </div>
+        <div class="grid" id="grid-edit"></div>
+        <div style="position:absolute; bottom:20px; left:20px;"><button class="btn-back" onclick="navTo('screen-menu')">◀ QUAY LẠI</button></div>
+    </div>
+
+    <div id="screen-edit-folder" class="screen">
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <h1 id="edit-folder-title"></h1>
+                <div class="vertical-line"></div>
+                <div style="display:flex; flex-direction:column; gap:5px; width: 100%;">
+                    <button class="btn-action btn-add" id="btn-add-card" onclick="openCardModal()">Thêm thẻ</button>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-action btn-del" style="flex:1" id="btn-del-card" onclick="deleteSelectedCards()">Xóa Thẻ</button>
+                        <button class="btn-action btn-undo" id="btn-undo-card" onclick="undoLastAction('card')" disabled title="Phục hồi thẻ vừa xóa">↺ Hoàn tác</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="filter-bar">
+            <select class="sort-btn" id="sort-card" onchange="renderCards()">
+                <option value="recent">⬇ Mới nhất / Tạo gần đây</option>
+                <option value="az">A-Z</option>
+                <option value="za" id="opt-za-card">Z-A</option>
+            </select>
+            <div class="search-box">
+                <span>🔍</span>
+                <input type="text" id="search-card" placeholder="Tìm thẻ..." oninput="renderCards()">
+            </div>
+        </div>
+        <div class="grid" id="grid-cards"></div>
+        <div style="position:absolute; bottom:20px; left:20px;"><button class="btn-back" onclick="navTo('screen-edit-select')">◀ QUAY LẠI</button></div>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div class="top-bar" style="margin-bottom: 20px;">
+            <div class="top-bar-left">
+                <button class="btn-back" onclick="exitQuiz()">◀ THOÁT</button>
+                <h1 style="font-size: 24px;">Quiz</h1>
+            </div>
+            <div class="top-bar-right" style="gap: 20px;">
+                <div id="quiz-timer-display" style="font-size: 20px; font-weight: bold; color: #e64a19;"></div>
+                <div id="quiz-progress" style="font-size: 20px; font-weight: bold; color: #0284c7;"></div>
+            </div>
+        </div>
+        <div class="study-area" style="justify-content: flex-start; padding-top: 20px;">
+            <div class="quiz-container">
+                <div class="quiz-question" id="quiz-question">Câu hỏi...</div>
+                
+                <div id="input-method-toggle-quiz" style="display:none; justify-content:center; gap:10px; margin-bottom:10px;">
+                    <button class="btn-action btn-method-type" onclick="switchInputMethod('type', 'quiz')">⌨️ Gõ chữ</button>
+                    <button class="btn-action btn-method-draw" onclick="switchInputMethod('draw', 'quiz')">✍️ Vẽ tay</button>
+                </div>
+
+                <div id="quiz-ocr-tools" style="background:#f0f9ff; padding:10px; border-radius:10px; border:1px solid #bae6fd; margin-bottom: 10px; display: none; color:#0f172a;">
+                    <div style="font-weight:bold; margin-bottom:5px;">Vẽ chữ Nhật:</div>
+                    <canvas id="quiz-ocr-canvas"></canvas>
+                    <div class="ocr-suggestions" id="quiz-ocr-results"></div>
+                    <button onclick="clearQuizCanvas()" style="background:#ffcc80; padding:5px 10px; border-radius:5px; margin-top:5px; border:none; font-weight:bold; cursor:pointer; color:#222;">Xóa nét vẽ</button>
+                </div>
+                <div id="quiz-romaji-tools" class="romaji-tools-class" style="margin-bottom: 10px;">
+                    <div class="romaji-options">
+                        <label><input type="radio" name="quizRjMode" value="hira" checked> Hiragana (あ)</label>
+                        <label><input type="radio" name="quizRjMode" value="kata"> Katakana (ア)</label>
+                    </div>
+                    <div style="font-size: 12px; color: #666; font-style: italic;">*Gõ "nn" ra chữ ん/ン. Chữ HOA (như CD) sẽ được giữ nguyên. Gõ "who" ra ウォ. Chọn gợi ý bên dưới để điền Kanji.</div>
+                    <div id="quiz-romaji-suggest" class="ocr-suggestions">Gợi ý: ...</div>
+                </div>
+
+                <div id="quiz-mc-options" style="display:none; flex-direction:column; gap:10px; margin-bottom:15px;"></div>
+
+                <input type="text" id="quiz-inp-answer" class="quiz-input" placeholder="Nhập đáp án..." oninput="handleRomajiInput(this, 'quiz')" autocomplete="off">
+                
+                <button class="btn-action btn-add" id="btn-check-quiz" style="width: 100%; font-size: 18px; padding: 15px;" onclick="checkQuizAnswer()">Kiểm tra</button>
+                
+                <div id="quiz-feedback" class="quiz-feedback"></div>
+                <button class="btn-action" id="btn-next-quiz" style="width: 100%; font-size: 18px; padding: 15px; background: var(--btn-blue); display: none;" onclick="nextQuizQuestion()">Tiếp tục ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-quiz-result" class="screen">
+        <div style="position: absolute; top: 20px; left: 20px; z-index: 10;">
+            <button class="btn-back" onclick="navTo('screen-learn-select')">◀ HOÀN THÀNH</button>
+        </div>
+        <div class="study-area" style="align-items: center; width: 100%;">
+            <h1 style="font-size: 40px; color: #0284c7; margin-bottom: 20px; text-shadow: 0 4px 15px rgba(255,255,255,0.9);">Kết quả Quiz 🎉</h1>
+            
+            <div class="quiz-stats-box" id="quiz-result-stats"></div>
+            
+            <div style="width: 100%; max-width: 700px; display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                <h3 style="color: #0f172a; margin:0;">Chi tiết câu hỏi:</h3>
+                <select id="filter-details" class="sort-btn" style="padding: 5px 15px; background: rgba(255,255,255,0.9);" onchange="renderQuizDetails()">
+                    <option value="all">Hiển thị: Tất cả</option>
+                    <option value="correct">Chỉ câu Đúng</option>
+                    <option value="wrong">Chỉ câu Sai</option>
+                    <option value="unanswered">Bỏ qua / Trống</option>
+                </select>
+            </div>
+
+            <div id="quiz-details-list" style="width: 100%; max-width: 700px; display: flex; flex-direction: column;">
+                </div>
+
+            <button class="btn-action btn-add" style="margin-top: 30px; margin-bottom:30px; font-size: 20px; padding: 15px 40px;" onclick="navTo('screen-learn-select')">Về danh sách</button>
+        </div>
+    </div>
+
+    <div id="modal-card" class="modal">
+        <div class="modal-content">
+            <button class="close-x" onclick="attemptCloseModal('card')">✖</button>
+            <h2 style="margin:0; text-align:center; color:#0f172a;" id="modal-title">Tạo / Sửa Thẻ</h2>
+            
+            <div id="input-method-toggle-edit" style="display:none; justify-content:center; gap:10px; margin-top:10px; margin-bottom:5px;">
+                <button class="btn-action btn-method-type" onclick="switchInputMethod('type', 'edit')">⌨️ Gõ chữ</button>
+                <button class="btn-action btn-method-draw" onclick="switchInputMethod('draw', 'edit')">✍️ Vẽ tay</button>
+            </div>
+
+            <div id="ocr-tools" style="background:#f0f9ff; padding:10px; border-radius:10px; border:1px solid #bae6fd; color:#0f172a;">
+                <div style="font-weight:bold; margin-bottom:5px;">Vẽ chữ Nhật để nhận dạng:</div>
+                <canvas id="ocr-canvas"></canvas>
+                <div class="ocr-suggestions" id="ocr-results"></div>
+                <button onclick="clearCanvas()" style="background:#ffcc80; padding:5px 10px; border-radius:5px; margin-top:5px; color:#222; font-weight:bold; border:none;">Xóa nét vẽ</button>
+            </div>
+            <div id="romaji-tools" class="romaji-tools-class">
+                <div class="romaji-options">
+                    <label><input type="radio" name="rjMode" value="hira" checked> Hiragana (あ)</label>
+                    <label><input type="radio" name="rjMode" value="kata"> Katakana (ア)</label>
+                </div>
+                <div style="font-size: 12px; color: #666; font-style: italic;">*Gõ "nn" ra chữ ん/ン. Chữ HOA (như CD) sẽ được giữ nguyên. Gõ "who" ra ウォ. Chọn gợi ý bên dưới để điền Kanji.</div>
+                <div id="romaji-suggest" class="ocr-suggestions">Gợi ý: ...</div>
+            </div>
+            <input type="text" id="inp-term" placeholder="..." oninput="handleRomajiInput(this, 'edit')">
+            <input type="text" id="inp-def" placeholder="Nghĩa tiếng Việt">
+            <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+                <button class="btn-action btn-add" style="width:100%; padding:15px; font-size:16px;" onclick="saveCard()">Lưu Thẻ</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-intro" class="modal">
+        <div class="modal-content" style="text-align:center; padding-top: 30px;">
+            <h2 id="intro-title" style="color:#0284c7; margin-bottom: 10px;">Giới thiệu</h2>
+            <div id="intro-image" style="font-size:80px; margin:20px 0; animation: popIn 0.5s ease;">🎓</div>
+            <p id="intro-desc" style="font-size:16px; color:#333; min-height:100px; line-height: 1.6; padding: 0 10px;"></p>
+            
+            <div style="display:flex; justify-content:space-between; margin-top:20px; align-items: center;">
+                <button class="btn-action" id="intro-prev" onclick="changeIntro(-1)" style="background:#e2e8f0; flex: 1; margin-right: 10px;">◀ Trước</button>
+                <div id="intro-dots" style="display: flex; gap: 5px; flex: 1; justify-content: center;"></div>
+                <button class="btn-action btn-add" id="intro-next" onclick="changeIntro(1)" style="flex: 1; margin-left: 10px;">Tiếp ▶</button>
+            </div>
+            <button class="close-x" onclick="document.getElementById('modal-intro').classList.remove('active')">✖</button>
+        </div>
+    </div>
+
+    <div id="modal-music" class="modal">
+        <div class="modal-content" style="position:relative;">
+            <button class="close-x" onclick="document.getElementById('modal-music').classList.remove('active')">✖</button>
+            <h2 style="margin-top:20px; text-align:center;">Danh sách Nhạc nền</h2>
+            
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;">
+                <input type="file" id="music-file-input" accept="audio/*" multiple style="display:none" onchange="addSongs(this.files)">
+                <button class="btn-action" style="background:#bbf7d0; color:#166534; width:100%; padding:15px; font-size:16px;" onclick="document.getElementById('music-file-input').click()">📁 Chọn / Thêm File Nhạc từ máy</button>
+                
+                <div style="display:flex; justify-content:space-between; margin-top: 5px;">
+                    <button class="btn-action" id="btn-loop-mode" onclick="toggleLoopMode()" style="background:#e0f2fe; color:#0369a1; flex:1; margin-right:5px;">🔁 Lặp: Tất cả</button>
+                    <button class="btn-action" id="btn-random-mode" onclick="toggleRandomMode()" style="background:#e0f2fe; color:#0369a1; flex:1; margin-left:5px;">🔀 Ngẫu nhiên: Tắt</button>
+                </div>
+
+                <div id="playlist-container" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; padding:5px; border:2px solid #bae6fd; border-radius:10px; background:#f0f9ff;">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-quiz-setup" class="modal">
+        <div class="modal-content">
+            <h2 style="margin:0; text-align: center; color:#0f172a;">Tùy chọn Quiz</h2>
+            <p style="text-align: center; color: #555;">Chọn chế độ thời gian cho bài Quiz này.</p>
+            <button class="btn-action" style="background: var(--btn-blue); padding: 15px; font-size: 18px;" onclick="initQuiz('no-time')">Phòng tập (Không giới hạn)</button>
+            <button class="btn-action" style="background: var(--btn-red); padding: 15px; font-size: 18px; color: white;" onclick="initQuiz('time')">Thử thách (10s / thẻ)</button>
+            <button class="btn-action" style="background: #ddd; margin-top: 10px;" onclick="closeQuizSetup()">Hủy</button>
+        </div>
+    </div>
+
+    <div id="modal-alert" class="modal" style="z-index: 1000;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding-top:20px;">
+            <h3 id="alert-msg" style="margin-top: 0; color: #0f172a;"></h3>
+            <button class="btn-action btn-add" id="btn-alert-ok" style="font-size: 16px; padding: 10px 30px; margin: 0 auto;">OK</button>
+        </div>
+    </div>
+
+    <div id="modal-confirm" class="modal" style="z-index: 1000;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding-top:20px;">
+            <h3 id="confirm-msg" style="margin-top: 0; color: #0f172a;"></h3>
+            <div style="display:flex; justify-content:center; gap:10px;">
+                <button class="btn-action" style="background:#ddd; font-size: 16px;" id="btn-confirm-cancel">Hủy</button>
+                <button class="btn-action btn-del" id="btn-confirm-ok" style="font-size: 16px;">Đồng ý</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-prompt" class="modal" style="z-index: 1000;">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <button class="close-x" id="btn-prompt-close">✖</button>
+            <h3 id="prompt-msg" style="margin-top: 10px; color: #0f172a;"></h3>
+            <input type="text" id="prompt-input" class="quiz-input" style="width: 100%; text-align: center;">
+            <div style="display:flex; justify-content:center; gap:10px; margin-top: 10px;">
+                <button class="btn-action btn-add" id="btn-prompt-ok" style="font-size: 16px; width:100%; padding:10px;">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- CÁC HÀM CUSTOM UI THAY THẾ DIALOG MẶC ĐỊNH ---
+    function customAlert(msg) {
+        return new Promise(resolve => {
+            document.getElementById('alert-msg').innerText = msg;
+            const modal = document.getElementById('modal-alert');
+            modal.classList.add('active');
+            
+            let isResolved = false;
+            const finish = () => {
+                if (isResolved) return;
+                isResolved = true;
+                modal.classList.remove('active');
+                document.removeEventListener('keydown', keyHandler);
+                resolve();
+            };
+
+            const keyHandler = (e) => {
+                if(e.key === 'Enter' || e.key === 'Escape') {
+                    e.preventDefault();
+                    finish();
+                }
+            };
+            document.addEventListener('keydown', keyHandler);
+            
+            document.getElementById('btn-alert-ok').onclick = finish;
+            modal.onclick = (e) => { if(e.target === modal) finish(); };
+        });
+    }
+
+    function customConfirm(msg) {
+        return new Promise(resolve => {
+            document.getElementById('confirm-msg').innerText = msg;
+            const modal = document.getElementById('modal-confirm');
+            modal.classList.add('active');
+            
+            let isResolved = false;
+            const finish = (result) => {
+                if(isResolved) return;
+                isResolved = true;
+                modal.classList.remove('active');
+                resolve(result);
+            };
+
+            document.getElementById('btn-confirm-ok').onclick = () => finish(true);
+            document.getElementById('btn-confirm-cancel').onclick = () => finish(false);
+            
+            modal.onclick = (e) => { if(e.target === modal) finish(false); };
+        });
+    }
+
+    function customPrompt(msg, defaultVal = '') {
+        return new Promise(resolve => {
+            document.getElementById('prompt-msg').innerText = msg;
+            let inp = document.getElementById('prompt-input');
+            inp.value = defaultVal;
+            const modal = document.getElementById('modal-prompt');
+            modal.classList.add('active');
+            inp.focus();
+            
+            let isResolved = false;
+            const finish = (val) => {
+                if(isResolved) return;
+                isResolved = true;
+                modal.classList.remove('active');
+                resolve(val);
+            };
+
+            document.getElementById('btn-prompt-ok').onclick = () => finish(inp.value.trim() === '' ? null : inp.value);
+            
+            document.getElementById('btn-prompt-close').onclick = () => finish(null);
+            
+            modal.onclick = (e) => {
+                if(e.target === modal) {
+                    finish(null);
+                }
+            };
+
+            inp.onkeypress = (e) => {
+                if (e.key === 'Enter') finish(inp.value.trim() === '' ? null : inp.value);
+            };
+        });
+    }
+
+    function attemptCloseModal(type) {
+        if(type === 'card') {
+            document.getElementById('modal-card').classList.remove('active');
+        }
+    }
+
+    document.getElementById('modal-card').onclick = (e) => {
+        if(e.target.id === 'modal-card') attemptCloseModal('card');
+    };
+
+    // --- MUSIC FLOATING NOTES ---
+    function spawnFloatingNote() {
+        if (!isPlayingMusic) return;
+        const wrapper = document.querySelector('.disk-wrapper');
+        if(!wrapper) return;
+        
+        const note = document.createElement('div');
+        note.className = 'floating-note';
+        const notesArr = ['🎵', '🎶', '✨', '🎧'];
+        note.innerText = notesArr[Math.floor(Math.random() * notesArr.length)];
+        
+        // Random horizontal drift
+        const dx = (Math.random() * 40 - 20) + 'px'; 
+        note.style.setProperty('--dx', dx);
+        
+        wrapper.appendChild(note);
+        setTimeout(() => note.remove(), 2000);
+    }
+    // Spawn note every 800ms
+    setInterval(spawnFloatingNote, 800);
+
+    // --- KEYBOARD SHORTCUTS ---
+    document.addEventListener('keydown', (e) => {
+        if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            if (e.code === 'Enter' && document.getElementById('modal-card').classList.contains('active')) {
+                saveCard();
+            }
+            return;
+        }
+        
+        const activeScreen = document.querySelector('.screen.active');
+        if(!activeScreen) return;
+
+        if (activeScreen.id === 'screen-study') {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                document.getElementById('study-card').classList.toggle('flipped');
+            }
+            if (e.code === 'ArrowRight') changeCard(1);
+            if (e.code === 'ArrowLeft') changeCard(-1);
+        }
+    });
+
+    // --- APP INTRO SLIDESHOW LOGIC ---
+    const introSteps = [
+        { title: "👋 Chào mừng!", desc: "Ứng dụng Flashcard được thiết kế với giao diện hiện đại, giúp bạn ôn luyện Tiếng Nhật và Tiếng Anh hiệu quả. Việc học từ vựng sẽ trở nên nhẹ nhàng, trực quan và bớt nhàm chán hơn rất nhiều.", icon: "🎓" },
+        { title: "📂 Quản lý thông minh", desc: "Tạo, chỉnh sửa Thư mục và Thẻ từ vựng vô cùng dễ dàng. Tính năng Hoàn tác (Undo) luôn thường trực trên thanh công cụ để bảo vệ dữ liệu nếu bạn chẳng may lỡ tay xóa nhầm.", icon: "🗂️" },
+        { title: "✍️ Tích hợp Vẽ Tay AI", desc: "Bạn không biết cách gõ Romaji? Đừng lo! Chỉ cần vẽ nét chữ Kanji hoặc Kana trực tiếp trên màn hình, AI sẽ tự động phân tích và chuyển đổi thành văn bản chính xác nhất.", icon: "🖌️" },
+        { title: "🎮 Quiz đa dạng", desc: "Thử thách giới hạn bộ nhớ qua nhiều chế độ Quiz: Trắc nghiệm, Gõ phím, Vẽ tay... Kết hợp cùng tùy chọn đếm ngược thời gian ⏱️, giúp rèn luyện phản xạ và nhớ từ thật sâu.", icon: "🎯" },
+        { title: "🎧 Thư giãn với Âm nhạc", desc: "Không gian học tập tích hợp sẵn trình phát nhạc. Hãy thêm những bản tình ca hay lofi bạn thích, tạo playlist riêng và tùy chỉnh chế độ lặp/ngẫu nhiên để vừa học vừa thư giãn 🎵.", icon: "🎵" }
+    ];
+    let currentIntroStep = 0;
+
+    function showIntro(step) {
+        currentIntroStep = step;
+        updateIntroUI();
+        document.getElementById('modal-intro').classList.add('active');
+    }
+
+    function changeIntro(dir) {
+        currentIntroStep += dir;
+        if(currentIntroStep < 0) currentIntroStep = 0;
+        if(currentIntroStep >= introSteps.length) {
+            document.getElementById('modal-intro').classList.remove('active');
+            return;
+        }
+        updateIntroUI();
+    }
+
+    function updateIntroUI() {
+        const step = introSteps[currentIntroStep];
+        const iconEl = document.getElementById('intro-image');
+        
+        iconEl.style.animation = 'none';
+        void iconEl.offsetWidth; 
+        iconEl.style.animation = 'popIn 0.5s ease';
+
+        document.getElementById('intro-title').innerText = step.title;
+        document.getElementById('intro-desc').innerText = step.desc;
+        iconEl.innerText = step.icon;
+        
+        document.getElementById('intro-prev').style.visibility = currentIntroStep === 0 ? 'hidden' : 'visible';
+        document.getElementById('intro-next').innerText = currentIntroStep === introSteps.length - 1 ? 'Xong ✔' : 'Tiếp ▶';
+        document.getElementById('intro-next').style.background = currentIntroStep === introSteps.length - 1 ? 'var(--btn-orange)' : 'var(--btn-green)';
+
+        let dotsHtml = '';
+        for(let i = 0; i < introSteps.length; i++) {
+            dotsHtml += `<div style="width:10px; height:10px; border-radius:50%; background:${i === currentIntroStep ? '#0284c7' : '#bae6fd'}; transition:background 0.3s;"></div>`;
+        }
+        document.getElementById('intro-dots').innerHTML = dotsHtml;
+    }
+
+    // ------------------------------------------------
+
+    let dbJP = JSON.parse(localStorage.getItem('flashcard_japan_db')) || [];
+    let dbEN = JSON.parse(localStorage.getItem('english_flashcard_db')) || [];
+    let db = [];
+    let currentApp = ''; 
+    let currentFolderId = null, currentStudyIndex = 0, studyCards = [], editingCardId = null, suggestTimeout = null;
+    let currentInputMethod = 'type';
+
+    let undoFolderStack = [];
+    let undoCardStack = [];
+
+    let quizCards = [], currentQuizIndex = 0, quizStats = { correct: 0, wrong: 0, unanswered: 0 };
+    let quizDetails = []; 
+    let quizMode = 'no-time', quizTimer, timeLeft = 10, currentQuizFolderId = null;
+
+    let isPlayingMusic = false;
+
+    const ROMAJI_MAP = {
+        'a':['あ','ア'],'i':['い','イ'],'u':['う','ウ'],'e':['え','エ'],'o':['お','オ'],
+        'ka':['か','カ'],'ki':['き','キ'],'ku':['く','ク'],'ke':['け','ケ'],'ko':['こ','コ'],
+        'ga':['が','ガ'],'gi':['ぎ','ギ'],'gu':['ぐ','グ'],'ge':['げ','ゲ'],'go':['ご','ゴ'],
+        'sa':['さ','サ'],'shi':['し','シ'],'su':['す','ス'],'se':['せ','セ'],'so':['そ','ソ'],
+        'za':['ざ','ザ'],'ji':['じ','ジ'],'zu':['ず','ズ'],'ze':['ぜ','ゼ'],'zo':['ぞ','ゾ'],
+        'ta':['た','タ'],'chi':['ち','チ'],'tsu':['つ','ツ'],'te':['て','テ'],'to':['と','ト'],
+        'da':['だ','ダ'],
+        'di':['でぃ','ディ'],'du':['どぅ','ドゥ'],'dyu':['でゅ','デュ'],
+        'dji':['ぢ','ヂ'],'dzu':['づ','ヅ'],
+        'de':['で','デ'],'do':['ど','ド'],
+        'na':['な','ナ'],'ni':['に','ニ'],'nu':['ぬ','ヌ'],'ne':['ね','ネ'],'no':['の','ノ'],
+        'ha':['は','ハ'],'hi':['ひ','ヒ'],'fu':['ふ','フ'],'he':['へ','ヘ'],'ho':['ほ','ホ'],
+        'ba':['ば','バ'],'bi':['び','ビ'],'bu':['ぶ','ブ'],'be':['べ','ベ'],'bo':['ぼ','ボ'],
+        'pa':['ぱ','パ'],'pi':['ぴ','ピ'],'pu':['ぷ','プ'],'pe':['ぺ','ペ'],'po':['ぽ','ポ'],
+        'ma':['ま','マ'],'mi':['み','ミ'],'mu':['む','ム'],'me':['め','メ'],'mo':['も','モ'],
+        'ya':['や','ヤ'],'yu':['ゆ','ユ'],'yo':['よ','ヨ'],
+        'ra':['ら','ラ'],'ri':['り','リ'],'ru':['る','ル'],'re':['れ','レ'],'ro':['ろ','ロ'],
+        'wa':['わ','ワ'],'wo':['を','ヲ'],'nn':['ん','ン'],
+        'wi':['うぃ','ウィ'],'we':['うぇ','ウェ'],'who':['うぉ','ウォ'],
+        'she':['しぇ','シェ'],'che':['ちぇ','チェ'],
+        'tse':['つぇ','ツェ'],'tso':['つぉ','ツォ'],'tsa':['つぁ','ツァ'],
+        'ti':['てぃ','ティ'],'tu':['とぅ','トゥ'],
+        'fa':['ふぁ','ファ'],'fi':['ふぃ','フィ'],'fe':['ふぇ','フェ'],'fo':['ふぉ','フォ'],
+        'je':['じぇ','ジェ'],
+        'kya':['きゃ','キャ'],'kyu':['きゅ','キュ'],'kyo':['きょ','キョ'],
+        'sha':['しゃ','シャ'],'shu':['しゅ','シュ'],'sho':['しょ','ショ'],
+        'cha':['ちゃ','チャ'],'chu':['ちゅ','チュ'],'cho':['ちょ','チョ'],
+        'nya':['にゃ','ニャ'],'nyu':['にゅ','ニュ'],'nyo':['にょ','ニョ'],
+        'hya':['ひゃ','ヒャ'],'hyu':['ひゅ','ヒュ'],'hyo':['ひょ','ヒョ'],
+        'mya':['みゃ','ミャ'],'myu':['みゅ','ミュ'],'myo':['みょ','ミョ'],
+        'rya':['りゃ','リャ'],'ryu':['りゅ','リュ'],'ryo':['りょ','リョ'],
+        'gya':['ぎゃ','ギャ'],'gyu':['ぎゅ','ギュ'],'gyo':['ぎょ','ギョ'],
+        'ja':['じゃ','ジャ'],'ju':['じゅ','ジュ'],'jo':['じょ','ジョ'],
+        'bya':['びゃ','ビャ'],'byu':['びゅ','ビュ'],'byo':['びょ','ビョ'],
+        'pya':['ぴゃ','ピャ'],'pyu':['ぴゅ','ピュ'],'pyo':['ぴょ','ピョ']
+    };
+
+    function normalizeKana(str) {
+        if(!str) return '';
+        const smallKana = 'ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ';
+        const bigKana =   'あいうえおつやゆよわアイウエオツヤユヨワ';
+        let res = '';
+        for(let i=0; i<str.length; i++) {
+            let idx = smallKana.indexOf(str[i]);
+            res += idx !== -1 ? bigKana[idx] : str[i];
+        }
+        return res.toLowerCase();
+    }
+
+    function getSimilarity(s1, s2) {
+        if (!s1 || !s2) return 0;
+        if (s1 === s2) return 1.0;
+        let costs = new Array(s1.length + 1);
+        for (let i = 0; i <= s1.length; i++) {
+            let lastValue = i;
+            for (let j = 0; j <= s2.length; j++) {
+                if (i === 0) costs[j] = j;
+                else if (j > 0) {
+                    let newValue = costs[j - 1];
+                    if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+                        newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+                    }
+                    costs[j - 1] = lastValue;
+                    lastValue = newValue;
+                }
+            }
+            if (i > 0) costs[s2.length] = lastValue;
+        }
+        const maxLen = Math.max(s1.length, s2.length);
+        return (maxLen - costs[s2.length]) / maxLen;
+    }
+
+    function getPossibleAnswers(str) {
+        if (!str) return [];
+        return str.split(/[,/|]/).map(s => s.trim()).filter(s => s.length > 0);
+    }
+    // ----------------------------------------------------
+
+    function selectApp(app) {
+        currentApp = app;
+        document.body.className = 'theme-' + app;
+        db = app === 'jp' ? dbJP : dbEN;
+        
+        document.getElementById('main-menu-title').innerHTML = app === 'jp' ? 'FLASH CARD<br>JAPAN 🇯🇵' : 'FLASH CARD<br>ENGLISH 🇬🇧';
+        
+        document.getElementById('btn-learn-text').innerText = 'Học Flash Card';
+        document.getElementById('btn-edit-text').innerText = 'Quản lý Flash Card';
+        
+        document.getElementById('learn-title').innerText = 'Học Flash Card';
+        document.getElementById('edit-title').innerText = 'Quản lý Flash Card';
+        
+        document.getElementById('btn-add-folder').innerText = 'Thêm Thư Mục';
+        document.getElementById('btn-add-card').innerText = 'Thêm thẻ';
+        document.getElementById('flip-btn-text').innerText = '⤵ LẬT THẺ!';
+        
+        document.getElementById('inp-term').placeholder = app === 'jp' ? 'Tiếng Nhật (Gõ Romaji)...' : 'Từ tiếng Anh';
+        
+        const showZA = app === 'jp' ? 'block' : 'none';
+        document.getElementById('opt-za-learn').style.display = showZA;
+        document.getElementById('opt-za-edit').style.display = showZA;
+        document.getElementById('opt-za-card').style.display = showZA;
+
+        navTo('screen-menu');
+    }
+
+    function navTo(screenId) {
+        const screens = document.querySelectorAll('.screen');
+        screens.forEach(s => {
+            s.classList.remove('active');
+            void s.offsetWidth; 
+        });
+        
+        document.getElementById(screenId).classList.add('active');
+        if(screenId === 'screen-learn-select') renderFolders('learn');
+        if(screenId === 'screen-edit-select') {
+            renderFolders('edit');
+            document.getElementById('btn-undo-folder').disabled = undoFolderStack.length === 0;
+        }
+        if(screenId === 'screen-edit-folder') {
+            renderCards();
+            document.getElementById('btn-undo-card').disabled = undoCardStack.length === 0;
+        }
+    }
+
+    function switchInputMethod(method, context) {
+        currentInputMethod = method;
+        let isJp = currentApp === 'jp';
+        
+        document.querySelectorAll('.btn-method-type').forEach(b => {
+            b.style.background = method === 'type' ? '#38bdf8' : '#e2e8f0';
+            b.style.color = method === 'type' ? '#fff' : '#0f172a';
+        });
+        document.querySelectorAll('.btn-method-draw').forEach(b => {
+            b.style.background = method === 'draw' ? '#38bdf8' : '#e2e8f0';
+            b.style.color = method === 'draw' ? '#fff' : '#0f172a';
+        });
+
+        if (context === 'edit' || context === 'all') {
+            document.getElementById('romaji-tools').style.display = (isJp && method === 'type') ? 'flex' : 'none';
+            document.getElementById('ocr-tools').style.display = (isJp && method === 'draw') ? 'block' : 'none';
+            if (isJp && method === 'draw') initCanvas();
+        }
+        
+        if (context === 'quiz' || context === 'all') {
+            let quizRj = document.getElementById('quiz-romaji-tools');
+            let quizOcr = document.getElementById('quiz-ocr-tools');
+            if (quizRj && quizOcr) {
+                quizRj.style.display = (isJp && method === 'type') ? 'flex' : 'none';
+                quizOcr.style.display = (isJp && method === 'draw') ? 'block' : 'none';
+                if (isJp && method === 'draw') initQuizCanvas();
+            }
+        }
+    }
+
+    function handleRomajiInput(el, source) {
+        if(currentApp !== 'jp') return;
+        if (source === 'quiz' && typeof quizCards !== 'undefined' && quizCards[currentQuizIndex] && quizCards[currentQuizIndex].isAnswerVi) {
+            return;
+        }
+
+        let val = el.value; 
+        let radioName = source === 'quiz' ? 'quizRjMode' : 'rjMode';
+        let checkedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
+        const modeIdx = (checkedRadio && checkedRadio.value === 'hira') ? 0 : 1;
+
+        val = val.replace(/([bcdfghjklmpqrstvwxyz])\1/gi, (match, p1) => (p1.toLowerCase() === 'n' ? 'nn' : (modeIdx === 0 ? 'っ' : 'ッ') + p1));
+        const keys = Object.keys(ROMAJI_MAP).sort((a,b) => b.length - a.length);
+        for(let k of keys) {
+            val = val.replace(new RegExp(k, 'gi'), ROMAJI_MAP[k][modeIdx]);
+        }
+        
+        val = val.replace(/-/g, 'ー');
+        val = val.replace(/nn/gi, modeIdx === 0 ? 'ん' : 'ン');
+        el.value = val;
+        
+        clearTimeout(suggestTimeout);
+        suggestTimeout = setTimeout(() => fetchKanjiSuggestions(el.value, source), 500);
+    }
+
+    async function fetchKanjiSuggestions(text, source) {
+        if(currentApp !== 'jp') return;
+        const suggestEl = document.getElementById(source === 'quiz' ? 'quiz-romaji-suggest' : 'romaji-suggest');
+        if(!text.trim()) { suggestEl.innerHTML = 'Gợi ý: ...'; return; }
+        
+        if(!navigator.onLine) {
+            suggestEl.innerHTML = '<span style="color:#e64a19; font-weight:bold;">Offline: AI không thể gợi ý Kanji. Vẫn có thể gõ Hiragana.</span>';
+            return;
+        }
+
+        try {
+            let res = await fetch(`https://inputtools.google.com/request?text=${encodeURIComponent(text)}&itc=ja-t-i0-und&num=6&cp=0&cs=1&ie=utf-8&oe=utf-8&app=test`);
+            let data = await res.json();
+            if(data[0] === 'SUCCESS' && data[1][0]) {
+                suggestEl.innerHTML = data[1][0][1].map(s => `<span class="ocr-word" onclick="applyKanji('${s}', '${source}')">${s}</span>`).join('');
+            }
+        } catch(e) {
+            suggestEl.innerHTML = '<span style="color:#e64a19; font-weight:bold;">Lỗi mạng không thể tải gợi ý.</span>';
+        }
+    }
+
+    function applyKanji(k, source) { 
+        let el = document.getElementById(source === 'quiz' ? 'quiz-inp-answer' : 'inp-term'); 
+        el.value = k; 
+        document.getElementById(source === 'quiz' ? 'quiz-romaji-suggest' : 'romaji-suggest').innerHTML = 'Gợi ý: ...'; 
+        el.focus(); 
+    }
+
+    function getSortedFiltered(arr, sortType, searchQuery) {
+        let res = [...arr];
+        if (searchQuery) {
+            searchQuery = searchQuery.toLowerCase();
+            res = res.filter(item => {
+                let term = item.jp || item.en || '';
+                return (item.name && item.name.toLowerCase().includes(searchQuery)) || 
+                       (term.toLowerCase().includes(searchQuery)) || 
+                       (item.vi && item.vi.toLowerCase().includes(searchQuery));
+            });
+        }
+        if (sortType === 'az') res.sort((a,b) => (a.name||a.jp||a.en).localeCompare(b.name||b.jp||b.en));
+        else if (sortType === 'za' && currentApp === 'jp') res.sort((a,b) => (b.name||a.jp||a.en).localeCompare(a.name||a.jp||a.en));
+        else res.sort((a,b) => b.createdAt - a.createdAt); 
+        return res;
+    }
+
+    function renderFolders(mode) {
+        const sortVal = document.getElementById(`sort-${mode}`).value;
+        const searchVal = document.getElementById(`search-${mode}`).value;
+        const grid = document.getElementById(`grid-${mode}`);
+        const folders = getSortedFiltered(db, sortVal, searchVal);
+        grid.innerHTML = '';
+        folders.forEach(f => {
+            if(mode === 'learn') {
+                grid.innerHTML += `
+                <div class="item-card">
+                    <h2>${f.name}</h2>
+                    <div style="display:flex; gap:10px; width:100%; margin-top:auto;">
+                        <button class="item-btn" style="width:50%" onclick="startStudy('${f.id}')">Học Ngay!</button>
+                        <button class="item-btn" style="width:50%; background:var(--btn-blue)" onclick="openQuizSetup('${f.id}')">Quiz</button>
+                    </div>
+                </div>`;
+            } else {
+                grid.innerHTML += `<div class="item-card"><input type="checkbox" class="round-checkbox chk-folder" value="${f.id}"><h2 style="cursor:pointer;" onclick="renameFolder('${f.id}', '${f.name}', event)">${f.name}</h2><button class="item-btn" onclick="openFolderInside('${f.id}')" ${currentApp==='en'?'style="background:#b2dfdb"':''}>Mở Xem</button></div>`;
+            }
+        });
+    }
+
+    function renderCards() {
+        const folder = db.find(f => f.id === currentFolderId); if(!folder) return;
+        document.getElementById('edit-folder-title').innerText = folder.name;
+        const sortVal = document.getElementById('sort-card').value;
+        const searchVal = document.getElementById('search-card').value;
+        const cards = getSortedFiltered(folder.cards, sortVal, searchVal);
+        const grid = document.getElementById('grid-cards');
+        grid.innerHTML = '';
+        cards.forEach(c => { 
+            let term = c.jp || c.en;
+            grid.innerHTML += `<div class="item-card"><input type="checkbox" class="round-checkbox chk-card" value="${c.id}"><h3>${term}</h3><p>${c.vi}</p><button class="item-btn" onclick="openCardModal('${c.id}')" style="font-size:14px; padding:5px 10px; ${currentApp==='en'?'background:#b2dfdb':''}">Chỉnh sửa</button></div>`; 
+        });
+    }
+
+    // --- MUSIC SYSTEM (PLAYLIST & INDEXEDDB AUTOSAVE) ---
+    let musicDB;
+    let playlist = [];
+    let currentSongIndex = -1;
+    let playMode = 'all'; // 'all', 'one'
+    let isRandom = false;
+
+    function initMusicDB() {
+        return new Promise((resolve) => {
+            const req = indexedDB.open('FlashCardMusicDB', 1);
+            req.onupgradeneeded = (e) => {
+                let db = e.target.result;
+                if(!db.objectStoreNames.contains('playlist')) {
+                    db.createObjectStore('playlist', { keyPath: 'id' });
+                }
+            };
+            req.onsuccess = (e) => {
+                musicDB = e.target.result;
+                loadPlaylist().then(resolve);
+            };
+            req.onerror = () => resolve();
+        });
+    }
+
+    async function loadPlaylist() {
+        return new Promise((resolve) => {
+            if(!musicDB) return resolve();
+            const tx = musicDB.transaction('playlist', 'readonly');
+            const store = tx.objectStore('playlist');
+            const req = store.getAll();
+            req.onsuccess = (e) => {
+                playlist.forEach(s => URL.revokeObjectURL(s.url));
+                playlist = e.target.result.map(item => ({
+                    ...item,
+                    url: URL.createObjectURL(item.blob)
+                }));
+                renderPlaylist();
+                resolve();
+            };
+        });
+    }
+
+    async function addSongs(files) {
+        if(!files || !files.length || !musicDB) return;
+        const tx = musicDB.transaction('playlist', 'readwrite');
+        const store = tx.objectStore('playlist');
+        for(let file of files) {
+            store.put({ id: Date.now() + Math.random(), name: file.name, blob: file });
+        }
+        tx.oncomplete = () => loadPlaylist();
+    }
+
+    async function deleteSong(id) {
+        if(!musicDB) return;
+        const tx = musicDB.transaction('playlist', 'readwrite');
+        tx.objectStore('playlist').delete(id);
+        tx.oncomplete = () => {
+            if (playlist[currentSongIndex] && playlist[currentSongIndex].id === id) {
+                const audioEl = document.getElementById('bg-audio');
+                audioEl.pause();
+                isPlayingMusic = false;
+                document.getElementById('music-disk').classList.remove('spin');
+                currentSongIndex = -1;
+                document.getElementById('music-title').innerText = "Nhạc nền";
+            }
+            loadPlaylist();
+        };
+    }
+
+    function toggleLoopMode() {
+        playMode = playMode === 'all' ? 'one' : 'all';
+        document.getElementById('btn-loop-mode').innerText = playMode === 'all' ? '🔁 Lặp: Tất cả' : '🔂 Lặp: Một bài';
+        document.getElementById('bg-audio').loop = (playMode === 'one');
+    }
+
+    function toggleRandomMode() {
+        isRandom = !isRandom;
+        document.getElementById('btn-random-mode').innerText = isRandom ? '🔀 Ngẫu nhiên: Bật' : '🔀 Ngẫu nhiên: Tắt';
+        document.getElementById('btn-random-mode').style.background = isRandom ? '#bae6fd' : '#e0f2fe';
+    }
+
+    function playSong(index) {
+        if(!playlist.length || index < 0 || index >= playlist.length) return;
+        currentSongIndex = index;
+        const song = playlist[index];
+        const audioEl = document.getElementById('bg-audio');
+        audioEl.src = song.url;
+        document.getElementById('music-title').innerText = song.name;
+        audioEl.play().catch(e => console.log(e));
+        isPlayingMusic = true;
+        document.getElementById('music-disk').classList.add('spin');
+        renderPlaylist(); // Highlight bài đang phát & cập nhật icon đĩa quay
+    }
+
+    function renderPlaylist() {
+        const container = document.getElementById('playlist-container');
+        container.innerHTML = '';
+        if(!playlist.length) {
+            container.innerHTML = '<div style="text-align:center; color:#666; font-size:14px; padding:10px;">Chưa có bài hát nào được thêm.</div>';
+            return;
+        }
+        playlist.forEach((song, idx) => {
+            const isActive = idx === currentSongIndex;
+            const isSpinning = isActive && isPlayingMusic;
+            container.innerHTML += `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:${isActive ? '#bae6fd' : '#fff'}; padding:8px 10px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                <div style="display:flex; align-items:center; gap:8px; flex:1; overflow:hidden; cursor:pointer;" onclick="playSong(${idx})">
+                    <div style="font-size: 20px; animation: ${isSpinning ? 'spinDisk 4s linear infinite' : 'none'};">💿</div>
+                    <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:${isActive ? 'bold' : 'normal'}; color:#0f172a;">
+                        ${song.name}
+                    </div>
+                </div>
+                <button style="background:transparent; color:#ef4444; border:none; font-size:16px; cursor:pointer; padding-left: 10px;" onclick="deleteSong(${song.id})">✖</button>
+            </div>
+            `;
+        });
+    }
+
+    document.getElementById('bg-audio').addEventListener('ended', () => {
+        if(playMode === 'one') {
+            playSong(currentSongIndex);
+        } else if(isRandom) {
+            if(playlist.length > 1) {
+                let nextIdx = currentSongIndex;
+                while(nextIdx === currentSongIndex) {
+                    nextIdx = Math.floor(Math.random() * playlist.length);
+                }
+                playSong(nextIdx);
+            } else {
+                playSong(0);
+            }
+        } else {
+            let nextIdx = (currentSongIndex + 1) % playlist.length;
+            playSong(nextIdx);
+        }
+    });
+
+    function togglePlayMusic() {
+        const audioEl = document.getElementById('bg-audio');
+        const disk = document.getElementById('music-disk');
+        
+        if(!playlist.length) {
+            customAlert("Vui lòng thêm bài hát trước!");
+            return;
+        }
+
+        if(isPlayingMusic) {
+            audioEl.pause();
+            disk.classList.remove('spin');
+        } else {
+            if(currentSongIndex === -1) playSong(0);
+            else audioEl.play().catch(e=>console.log(e));
+            disk.classList.add('spin');
+        }
+        isPlayingMusic = !isPlayingMusic;
+        renderPlaylist();
+    }
+
+    function changeVolume(val) {
+        document.getElementById('bg-audio').volume = val;
+    }
+
+    function startStudy(fId) { 
+        const folder = db.find(f => f.id === fId); 
+        if(!folder || folder.cards.length === 0) {
+            customAlert("Thư mục này chưa có thẻ nào!");
+            return;
+        }
+        
+        if(currentApp === 'en') {
+            studyCards = [...folder.cards].sort(() => Math.random() - 0.5);
+        } else {
+            studyCards = folder.cards;
+        }
+        currentStudyIndex = 0; 
+        updateStudyCard(); 
+        
+        document.getElementById('music-widget').style.display = 'flex';
+        navTo('screen-study'); 
+    }
+
+    function exitStudyMode() {
+        const audioEl = document.getElementById('bg-audio');
+        audioEl.pause();
+        isPlayingMusic = false;
+        document.getElementById('music-disk').classList.remove('spin');
+        document.getElementById('music-widget').style.display = 'none';
+        renderPlaylist();
+        navTo('screen-learn-select');
+    }
+
+    function updateStudyCard() { 
+        const cardEl = document.getElementById('study-card');
+        cardEl.classList.remove('flipped'); 
+        const c = studyCards[currentStudyIndex]; 
+        document.getElementById('study-term').innerText = c.jp || c.en; 
+        document.getElementById('study-def').innerText = c.vi; 
+        document.getElementById('study-counter').innerText = `${currentStudyIndex + 1} / ${studyCards.length}`; 
+    }
+    
+    function changeCard(dir) { 
+        const cardEl = document.getElementById('study-card');
+        const animOut = dir > 0 ? 'card-anim-out-left' : 'card-anim-out-right';
+        const animIn = dir > 0 ? 'card-anim-in-right' : 'card-anim-in-left';
+        
+        cardEl.classList.remove('flipped');
+        cardEl.classList.add(animOut);
+        
+        setTimeout(() => {
+            currentStudyIndex = (currentStudyIndex + dir + studyCards.length) % studyCards.length; 
+            updateStudyCard(); 
+            cardEl.classList.remove(animOut);
+            cardEl.classList.add(animIn);
+            setTimeout(() => cardEl.classList.remove(animIn), 250);
+        }, 200);
+    }
+
+    // --- HOÀN TÁC THƯ MỤC / THẺ ---
+    function undoLastAction(type) {
+        if(type === 'folder' && undoFolderStack.length > 0) {
+            let lastItems = undoFolderStack.pop();
+            db.push(...lastItems);
+            renderFolders('edit');
+            saveData();
+            if(undoFolderStack.length === 0) document.getElementById('btn-undo-folder').disabled = true;
+        } 
+        else if (type === 'card' && undoCardStack.length > 0) {
+            let lastOp = undoCardStack.pop();
+            let folder = db.find(f => f.id === lastOp.folderId);
+            if(folder) {
+                folder.cards.push(...lastOp.items);
+                if(currentFolderId === lastOp.folderId) renderCards();
+                saveData();
+            }
+            if(undoCardStack.length === 0) document.getElementById('btn-undo-card').disabled = true;
+        }
+    }
+
+    async function createFolder() { 
+        let name = await customPrompt("Nhập tên thư mục mới:"); 
+        if(name) { 
+            db.push({ id: 'f'+Date.now(), name: name, createdAt: Date.now(), cards: [] }); 
+            renderFolders('edit'); 
+            saveData(); 
+        } 
+    }
+    
+    async function deleteSelectedFolders() { 
+        const chks = document.querySelectorAll('.chk-folder:checked'); if(!chks.length) return; 
+        if(await customConfirm("Bạn có chắc chắn muốn xóa thư mục đã chọn? (Có thể hoàn tác)")) { 
+            const ids = Array.from(chks).map(c => c.value); 
+            const deleted = db.filter(f => ids.includes(f.id));
+            undoFolderStack.push(deleted);
+            document.getElementById('btn-undo-folder').disabled = false;
+
+            db = db.filter(f => !ids.includes(f.id)); 
+            renderFolders('edit'); 
+            saveData(); 
+        } 
+    }
+    
+    async function renameFolder(id, old, e) { 
+        if(e) e.stopPropagation(); 
+        let n = await customPrompt("Sửa tên thư mục:", old); 
+        if(n && n !== old) { 
+            db.find(f => f.id === id).name = n; 
+            renderFolders('edit'); 
+            saveData(); 
+        } 
+    }
+    
+    function openFolderInside(id) { 
+        currentFolderId = id; 
+        undoCardStack = [];
+        navTo('screen-edit-folder'); 
+    }
+    
+    async function deleteSelectedCards() { 
+        const chks = document.querySelectorAll('.chk-card:checked'); if(!chks.length) return; 
+        if(await customConfirm("Bạn có chắc chắn muốn xóa các thẻ đã chọn? (Có thể hoàn tác)")) { 
+            const ids = Array.from(chks).map(c => c.value); 
+            let folder = db.find(f => f.id === currentFolderId); 
+            
+            const deleted = folder.cards.filter(c => ids.includes(c.id));
+            undoCardStack.push({ folderId: currentFolderId, items: deleted });
+            document.getElementById('btn-undo-card').disabled = false;
+
+            folder.cards = folder.cards.filter(c => !ids.includes(c.id)); 
+            renderCards(); 
+            saveData(); 
+        } 
+    }
+    
+    function saveData() { 
+        if(currentApp === 'jp') {
+            dbJP = db; localStorage.setItem('flashcard_japan_db', JSON.stringify(dbJP)); 
+        } else {
+            dbEN = db; localStorage.setItem('english_flashcard_db', JSON.stringify(dbEN));
+        }
+    }
+    
+    async function exportData() { 
+        if(!db.length) {
+            await customAlert("Dữ liệu trống!");
+            return;
+        }
+        let dataStr = "";
+        let filename = "";
+        if(currentApp === 'jp') {
+            dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            filename = "flashcards_japan.json";
+        } else {
+            dataStr = URL.createObjectURL(new Blob([JSON.stringify(db, null, 2)], { type: "application/json" }));
+            filename = `flashcards_english_${new Date().toLocaleDateString('vi-VN').replace(/\//g,'-')}.json`;
+        }
+        const dl = document.createElement('a'); 
+        dl.setAttribute("href", dataStr); 
+        dl.setAttribute("download", filename); 
+        dl.click(); dl.remove(); 
+        if(currentApp === 'en') URL.revokeObjectURL(dataStr);
+    }
+    
+    function importData(inp) { 
+        const file = inp.files[0]; if (!file) return; 
+        const r = new FileReader(); 
+        r.onload = async function(e) { 
+            try { 
+                const i = JSON.parse(e.target.result); 
+                if (Array.isArray(i)) { 
+                    let isWrongData = false;
+                    for (let f of i) {
+                        if (f.cards && f.cards.length > 0) {
+                            let c = f.cards[0];
+                            if (currentApp === 'jp' && c.en !== undefined && c.jp === undefined) isWrongData = true;
+                            if (currentApp === 'en' && c.jp !== undefined && c.en === undefined) isWrongData = true;
+                            if (isWrongData) break;
+                        }
+                    }
+
+                    if (isWrongData) {
+                        await customAlert(currentApp === 'jp' ? "Sai định dạng! Đây có vẻ là file của Tiếng Anh." : "Sai định dạng! Đây có vẻ là file của Tiếng Nhật.");
+                        return;
+                    }
+
+                    let shouldImport = true;
+                    if(currentApp !== 'jp') {
+                        shouldImport = await customConfirm("Lưu ý: Dữ liệu hiện tại sẽ bị ghi đè hoàn toàn. Tiếp tục?");
+                    }
+
+                    if(shouldImport) {
+                        db = i; saveData(); renderFolders('edit'); 
+                        await customAlert("Nhập file thành công!");
+                    }
+                } else { await customAlert("Định dạng file không hợp lệ!"); }
+            } catch (err) { await customAlert("Lỗi khi đọc file!"); } 
+        }; 
+        r.readAsText(file); inp.value = ''; 
+    }
+
+    function openCardModal(cardId = null) {
+        editingCardId = cardId; 
+        
+        document.getElementById('input-method-toggle-edit').style.display = currentApp === 'jp' ? 'flex' : 'none';
+        switchInputMethod(currentInputMethod, 'edit');
+        
+        document.getElementById('modal-card').classList.add('active');
+        document.getElementById('modal-title').innerText = cardId ? "Sửa Thẻ" : "Tạo Thẻ Mới";
+
+        if(cardId) { 
+            let c = db.find(f => f.id === currentFolderId).cards.find(x => x.id === cardId); 
+            document.getElementById('inp-term').value = c.jp || c.en; 
+            document.getElementById('inp-def').value = c.vi; 
+        } else { 
+            document.getElementById('inp-term').value = ''; 
+            document.getElementById('inp-def').value = ''; 
+        }
+        if(currentApp === 'jp') { clearCanvas(); }
+    }
+    
+    function closeModal() { document.getElementById('modal-card').classList.remove('active'); }
+    
+    async function saveCard() {
+        let f = db.find(f => f.id === currentFolderId);
+        let term = document.getElementById('inp-term').value.trim();
+        let vi = document.getElementById('inp-def').value.trim();
+        
+        if(!term || !vi) {
+            await customAlert("Vui lòng điền đủ thông tin!");
+            return;
+        }
+        
+        if(editingCardId) { 
+            let c = f.cards.find(x => x.id === editingCardId); 
+            if(currentApp === 'jp') c.jp = term; else c.en = term;
+            c.vi = vi; 
+        } else { 
+            let newCard = { id: 'c'+Date.now(), vi, createdAt: Date.now() };
+            if(currentApp === 'jp') newCard.jp = term; else newCard.en = term;
+            f.cards.push(newCard); 
+        }
+        closeModal(); renderCards(); saveData();
+    }
+
+    // --- CANVAS OCR LOGIC VỚI CẤU TRÚC POINTER EVENTS MỚI KHẮC PHỤC LỖI TRÊN MÁY TÍNH ---
+    let canvas, ctx, drawing = false, strokes = [], currentStroke = [];
+    
+    function initCanvas() {
+        if(currentApp !== 'jp') return;
+        canvas = document.getElementById('ocr-canvas');
+        canvas.width = canvas.offsetWidth || 300;
+        canvas.height = 120;
+        ctx = canvas.getContext('2d');
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#222';
+        strokes = [];
+        clearCanvas();
+
+        canvas.onpointerdown = (e) => { 
+            e.preventDefault(); 
+            drawing = true; currentStroke = []; 
+            let p = getPos(e, canvas); 
+            ctx.beginPath(); ctx.moveTo(p.x, p.y); currentStroke.push([p.x, p.y]); 
+        };
+        canvas.onpointermove = (e) => { 
+            if(!drawing) return; 
+            e.preventDefault(); 
+            let p = getPos(e, canvas); 
+            ctx.lineTo(p.x, p.y); ctx.stroke(); currentStroke.push([p.x, p.y]); 
+        };
+    }
+
+    window.addEventListener('pointerup', () => { 
+        if(drawing) { drawing = false; strokes.push(currentStroke); recognize(); }
+        if(qDrawing) { qDrawing = false; qStrokes.push(qCurrentStroke); recognizeQuiz(); }
+    });
+    
+    function getPos(e, canvasEl) { 
+        let r = canvasEl.getBoundingClientRect(); 
+        return { x: e.clientX - r.left, y: e.clientY - r.top }; 
+    }
+    
+    function clearCanvas() { if(!ctx || currentApp !== 'jp') return; ctx.clearRect(0,0,canvas.width,canvas.height); strokes = []; document.getElementById('ocr-results').innerHTML = ''; }
+    
+    async function recognize() {
+        if(!strokes.length || currentApp !== 'jp') return; 
+        if(!navigator.onLine) {
+            document.getElementById('ocr-results').innerHTML = '<span style="color:#e64a19; font-weight:bold;">Offline: Tính năng vẽ cần kết nối mạng.</span>';
+            return;
+        }
+        const ink = strokes.map(s => [s.map(p => p[0]), s.map(p => p[1]), []]);
+        try {
+            const reqBody = {
+                options: "enable_pre_space",
+                requests: [{ writing_guide: { writing_area_width: canvas.width, writing_area_height: canvas.height }, ink: ink, language: "ja" }]
+            };
+            const res = await fetch("https://inputtools.google.com/request?itc=ja-t-i0-handwrit&app=mobilesearch", { 
+                method: "POST", 
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(reqBody) 
+            });
+            const data = await res.json();
+            if(data[0] === "SUCCESS" && data[1] && data[1][0] && data[1][0][1]) {
+                document.getElementById('ocr-results').innerHTML = data[1][0][1].map(w => `<span class="ocr-word" onclick="document.getElementById('inp-term').value += '${w}'; clearCanvas()">${w}</span>`).join('');
+            }
+        } catch(e) {
+            document.getElementById('ocr-results').innerHTML = '<span style="color:#e64a19; font-weight:bold;">Lỗi mạng.</span>';
+        }
+    }
+
+    // --- QUIZ FUNCTIONS ---
+    async function openQuizSetup(fId) {
+        currentQuizFolderId = fId;
+        const folder = db.find(f => f.id === fId);
+        if(!folder || folder.cards.length === 0) {
+            await customAlert("Thư mục này chưa có thẻ nào!"); 
+            return;
+        }
+        document.getElementById('modal-quiz-setup').classList.add('active');
+    }
+
+    function closeQuizSetup() {
+        document.getElementById('modal-quiz-setup').classList.remove('active');
+    }
+
+    function initQuiz(mode) {
+        closeQuizSetup();
+        quizMode = mode;
+        let folder = db.find(f => f.id === currentQuizFolderId);
+        
+        quizCards = [...folder.cards].sort(() => Math.random() - 0.5);
+        
+        quizCards.forEach(c => { 
+            let term = c.jp || c.en;
+            let hasSynonymsTerm = getPossibleAnswers(term).length > 1;
+            
+            let types = ['write_vi', 'write_term', 'mc_vi', 'mc_term'];
+            if (hasSynonymsTerm) {
+                types.push('write_synonym', 'mc_synonym');
+            }
+            c.quizType = types[Math.floor(Math.random() * types.length)];
+        });
+
+        currentQuizIndex = 0;
+        quizStats = { correct: 0, wrong: 0, unanswered: 0 };
+        quizDetails = []; 
+        navTo('screen-quiz');
+        loadQuizQuestion();
+    }
+
+    function loadQuizQuestion() {
+        const c = quizCards[currentQuizIndex];
+        const type = c.quizType;
+        let term = c.jp || c.en;
+        let vi = c.vi;
+        
+        let possibleTerms = getPossibleAnswers(term);
+
+        let displayQuestion = "";
+        let targetAnswer = "";
+        let isAnswerVi = false;
+        
+        document.getElementById('quiz-feedback').style.display = 'none';
+        document.getElementById('btn-next-quiz').style.display = 'none';
+        document.getElementById('btn-check-quiz').style.display = 'none';
+        document.getElementById('quiz-mc-options').style.display = 'none';
+        document.getElementById('quiz-inp-answer').style.display = 'none';
+        document.getElementById('quiz-ocr-tools').style.display = 'none';
+        document.getElementById('quiz-romaji-tools').style.display = 'none';
+        document.getElementById('input-method-toggle-quiz').style.display = 'none';
+
+        if (type === 'write_vi' || type === 'mc_vi') {
+            displayQuestion = `Nghĩa tiếng Việt của "${term}" là gì?`;
+            targetAnswer = vi;
+            isAnswerVi = true;
+        } else if (type === 'write_term' || type === 'mc_term') {
+            displayQuestion = `Từ ${currentApp==='jp'?'tiếng Nhật':'tiếng Anh'} của "${vi}" là gì?`;
+            targetAnswer = term;
+            isAnswerVi = false;
+        } else if (type === 'write_synonym' || type === 'mc_synonym') {
+            let showIdx = Math.floor(Math.random() * possibleTerms.length);
+            let showWord = possibleTerms[showIdx];
+            let otherWords = possibleTerms.filter((_, i) => i !== showIdx);
+            displayQuestion = `Từ đồng nghĩa với từ "${showWord}" là gì?`;
+            targetAnswer = otherWords.join(','); 
+            isAnswerVi = false;
+        }
+
+        c.currentTargetAnswer = targetAnswer; 
+        c.isAnswerVi = isAnswerVi;
+        c.displayQuestion = displayQuestion;
+        
+        c.displayAns = isAnswerVi ? targetAnswer : getPossibleAnswers(targetAnswer).join(' hoặc ');
+
+        document.getElementById('quiz-question').innerText = displayQuestion;
+        document.getElementById('quiz-progress').innerText = `${currentQuizIndex + 1} / ${quizCards.length}`;
+
+        if (type.startsWith('write_')) {
+            document.getElementById('btn-check-quiz').style.display = 'block';
+            let inp = document.getElementById('quiz-inp-answer');
+            inp.style.display = 'block';
+            inp.value = '';
+            inp.disabled = false;
+            
+            if (isAnswerVi) {
+                inp.placeholder = 'Nhập nghĩa tiếng Việt...';
+            } else {
+                inp.placeholder = currentApp==='jp' ? 'Gõ Romaji...' : 'Nhập từ tiếng Anh...';
+                if (currentApp === 'jp') {
+                    document.getElementById('input-method-toggle-quiz').style.display = 'flex';
+                    switchInputMethod(currentInputMethod, 'quiz');
+                }
+            }
+            
+            if (window.innerWidth > 600) inp.focus(); 
+            
+            inp.onkeypress = (e) => {
+                if(e.key === 'Enter') {
+                    if(document.getElementById('btn-check-quiz').style.display !== 'none') {
+                        document.getElementById('btn-check-quiz').click();
+                    } else if (document.getElementById('btn-next-quiz').style.display !== 'none') {
+                        document.getElementById('btn-next-quiz').click();
+                    }
+                }
+            }
+
+        } else if (type.startsWith('mc_')) {
+            let allCards = db.find(f => f.id === currentQuizFolderId).cards;
+            let wrongCards = allCards.filter(card => card.id !== c.id).sort(() => Math.random() - 0.5);
+            
+            let correctAnswerString = isAnswerVi ? targetAnswer : getPossibleAnswers(targetAnswer)[0];
+            let wrongAnswersStringList = [];
+
+            if (isAnswerVi) {
+                wrongAnswersStringList = wrongCards.slice(0, 3).map(card => card.vi);
+            } else {
+                wrongAnswersStringList = wrongCards.slice(0, 3).map(card => getPossibleAnswers(card.jp || card.en)[0]);
+            }
+
+            let options = [{text: correctAnswerString, isCorrect: true}];
+            wrongAnswersStringList.forEach(w => options.push({text: w || "???", isCorrect: false}));
+            options = options.sort(() => Math.random() - 0.5); 
+            
+            let mcContainer = document.getElementById('quiz-mc-options');
+            mcContainer.innerHTML = '';
+            options.forEach(opt => {
+                let btn = document.createElement('button');
+                btn.className = 'btn-action mc-btn';
+                btn.style.width = '100%';
+                btn.style.padding = '15px';
+                btn.style.fontSize = '18px';
+                btn.style.background = '#f8fafc';
+                btn.style.border = '2px solid #e2e8f0';
+                btn.style.textAlign = 'center';
+                btn.innerText = opt.text;
+                btn.dataset.correct = opt.isCorrect;
+                btn.onclick = () => checkQuizMC(btn, opt.isCorrect, opt.text);
+                mcContainer.appendChild(btn);
+            });
+            mcContainer.style.display = 'flex';
+        }
+
+        if (quizMode === 'time') {
+            timeLeft = 10;
+            document.getElementById('quiz-timer-display').innerText = `⏱ ${timeLeft}s`;
+            clearInterval(quizTimer);
+            quizTimer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('quiz-timer-display').innerText = `⏱ ${timeLeft}s`;
+                if(timeLeft <= 0) {
+                    clearInterval(quizTimer);
+                    if (type.startsWith('mc_')) {
+                        handleMCTimeout();
+                    } else {
+                        checkQuizAnswer(true); 
+                    }
+                }
+            }, 1000);
+        } else {
+            document.getElementById('quiz-timer-display').innerText = '';
+        }
+    }
+
+    function checkQuizAnswer(isTimeout = false) {
+        clearInterval(quizTimer);
+        const c = quizCards[currentQuizIndex];
+        const inp = document.getElementById('quiz-inp-answer');
+        const userAnswer = inp.value.trim();
+
+        if (!isTimeout && userAnswer === '') {
+            customAlert("Bạn chưa nhập câu trả lời! Vui lòng nhập trước khi kiểm tra.");
+            if(quizMode === 'time') {
+                quizTimer = setInterval(() => {
+                    timeLeft--;
+                    document.getElementById('quiz-timer-display').innerText = `⏱ ${timeLeft}s`;
+                    if(timeLeft <= 0) { clearInterval(quizTimer); checkQuizAnswer(true); }
+                }, 1000);
+            }
+            return;
+        }
+
+        inp.disabled = true;
+        let possibleCorrectAnswers = c.isAnswerVi ? [c.currentTargetAnswer] : getPossibleAnswers(c.currentTargetAnswer);
+        let isCorrect = false;
+
+        if (!isTimeout) {
+            let normUser = currentApp === 'jp' ? normalizeKana(userAnswer) : userAnswer.toLowerCase();
+            for (let ans of possibleCorrectAnswers) {
+                let normAns = currentApp === 'jp' ? normalizeKana(ans) : ans.toLowerCase();
+                let similarity = c.isAnswerVi ? (normUser === normAns ? 1 : getSimilarity(normUser, normAns)) : getSimilarity(normUser, normAns);
+                
+                if (similarity >= 0.7) {
+                    isCorrect = true; break;
+                }
+            }
+        }
+
+        const feedback = document.getElementById('quiz-feedback');
+        feedback.style.display = 'block';
+
+        let statusStr = '';
+        if (isTimeout) {
+            quizStats.unanswered++; statusStr = 'unanswered';
+            feedback.style.background = '#ffedd5';
+            feedback.style.color = '#c2410c';
+            feedback.innerHTML = `⏳ Hết giờ! Đáp án: <br><span style="font-size:24px; color:#1e293b;">${c.displayAns}</span>`;
+        } else if (isCorrect) {
+            quizStats.correct++; statusStr = 'correct';
+            feedback.style.background = '#dcfce7';
+            feedback.style.color = '#15803d';
+            feedback.innerHTML = `✅ Chính xác! 🎉`;
+        } else {
+            quizStats.wrong++; statusStr = 'wrong';
+            feedback.style.background = '#fee2e2';
+            feedback.style.color = '#b91c1c';
+            feedback.innerHTML = `❌ Sai rồi! Đáp án: <br><span style="font-size:24px; color:#1e293b;">${c.displayAns}</span>`;
+        }
+
+        quizDetails.push({
+            question: c.displayQuestion,
+            userAnswer: isTimeout ? "(Không trả lời)" : userAnswer,
+            correctAnswer: c.displayAns,
+            status: statusStr
+        });
+
+        document.getElementById('btn-check-quiz').style.display = 'none';
+        document.getElementById('btn-next-quiz').style.display = 'block';
+    }
+
+    function checkQuizMC(btn, isCorrect, userAnswerText) {
+        clearInterval(quizTimer);
+        const c = quizCards[currentQuizIndex];
+        let buttons = document.querySelectorAll('.mc-btn');
+        buttons.forEach(b => b.disabled = true); 
+        
+        const feedback = document.getElementById('quiz-feedback');
+        feedback.style.display = 'block';
+
+        let statusStr = '';
+        if (isCorrect) {
+            btn.style.background = '#dcfce7';
+            btn.style.borderColor = '#15803d';
+            quizStats.correct++; statusStr = 'correct';
+            feedback.style.background = '#dcfce7';
+            feedback.style.color = '#15803d';
+            feedback.innerHTML = `✅ Chính xác! 🎉`;
+        } else {
+            btn.style.background = '#fee2e2';
+            btn.style.borderColor = '#b91c1c';
+            quizStats.wrong++; statusStr = 'wrong';
+            feedback.style.background = '#fee2e2';
+            feedback.style.color = '#b91c1c';
+            feedback.innerHTML = `❌ Sai rồi! Đáp án: <br><span style="font-size:24px; color:#1e293b;">${c.displayAns}</span>`;
+            
+            buttons.forEach(b => {
+                if (b.dataset.correct === 'true') {
+                    b.style.background = '#dcfce7';
+                    b.style.borderColor = '#15803d';
+                }
+            });
+        }
+
+        quizDetails.push({
+            question: c.displayQuestion,
+            userAnswer: userAnswerText,
+            correctAnswer: c.displayAns,
+            status: statusStr
+        });
+
+        document.getElementById('btn-next-quiz').style.display = 'block';
+    }
+
+    function handleMCTimeout() {
+        clearInterval(quizTimer);
+        const c = quizCards[currentQuizIndex];
+        let buttons = document.querySelectorAll('.mc-btn');
+        buttons.forEach(b => {
+            b.disabled = true;
+            if (b.dataset.correct === 'true') {
+                b.style.background = '#dcfce7';
+                b.style.borderColor = '#15803d';
+            }
+        });
+        
+        quizStats.unanswered++;
+        const feedback = document.getElementById('quiz-feedback');
+        feedback.style.display = 'block';
+        feedback.style.background = '#ffedd5';
+        feedback.style.color = '#c2410c';
+        feedback.innerHTML = `⏳ Hết giờ! Đáp án: <br><span style="font-size:24px; color:#1e293b;">${c.displayAns}</span>`;
+        
+        quizDetails.push({
+            question: c.displayQuestion,
+            userAnswer: "(Trống / Hết giờ)",
+            correctAnswer: c.displayAns,
+            status: 'unanswered'
+        });
+
+        document.getElementById('btn-next-quiz').style.display = 'block';
+    }
+
+    function nextQuizQuestion() {
+        currentQuizIndex++;
+        if (currentQuizIndex >= quizCards.length) {
+            showQuizResult();
+        } else {
+            loadQuizQuestion();
+        }
+    }
+
+    function showQuizResult() {
+        navTo('screen-quiz-result');
+        const total = quizStats.correct + quizStats.wrong + quizStats.unanswered;
+        const totalCards = quizCards.length;
+        const acc = total > 0 ? Math.round((quizStats.correct / total) * 100) : 0;
+        
+        document.getElementById('quiz-result-stats').innerHTML = `
+            <p style="margin-top:0">Đã làm: <b>${total} / ${totalCards}</b> câu</p>
+            <p style="color: #15803d; font-weight:bold;">Đúng: ${quizStats.correct} (Đạt ${acc}%)</p>
+            <p style="color: #b91c1c; font-weight:bold;">Sai: ${quizStats.wrong}</p>
+            <p style="color: #c2410c; font-weight:bold; margin-bottom:0">Bỏ qua / Trống / Hết giờ: ${quizStats.unanswered}</p>
+        `;
+
+        document.getElementById('filter-details').value = 'all';
+        renderQuizDetails();
+    }
+
+    function renderQuizDetails() {
+        const filterVal = document.getElementById('filter-details').value;
+        const listContainer = document.getElementById('quiz-details-list');
+        listContainer.innerHTML = '';
+
+        const filteredList = quizDetails.filter(item => filterVal === 'all' || item.status === filterVal);
+
+        if (filteredList.length === 0) {
+            listContainer.innerHTML = `<div style="color:#333; text-align:center; padding: 20px;">Không có câu hỏi nào ở mục này.</div>`;
+            return;
+        }
+
+        filteredList.forEach((item, index) => {
+            let statusClass = item.status === 'correct' ? 'detail-correct' : (item.status === 'wrong' ? 'detail-wrong' : 'detail-unanswered');
+            let icon = item.status === 'correct' ? '✅' : (item.status === 'wrong' ? '❌' : '⏳');
+            
+            listContainer.innerHTML += `
+                <div class="detail-item ${statusClass}">
+                    <div style="font-weight:bold; margin-bottom:5px; color:#0f172a;">Câu hỏi: ${item.question}</div>
+                    <div style="color: #555; margin-bottom:3px;">${icon} Trả lời: <b style="color:#222">${item.userAnswer}</b></div>
+                    <div style="color: #15803d;">🎯 Đáp án chuẩn: <b>${item.correctAnswer}</b></div>
+                </div>
+            `;
+        });
+    }
+
+    async function exitQuiz() {
+        if (currentQuizIndex < quizCards.length) {
+            let wantsToExit = await customConfirm("Bạn chưa hoàn thành bài Quiz. Bạn có chắc chắn muốn thoát và xem bảng thống kê điểm hiện tại không?");
+            if (wantsToExit) {
+                clearInterval(quizTimer);
+                showQuizResult();
+            }
+        } else {
+            clearInterval(quizTimer);
+            navTo('screen-learn-select');
+        }
+    }
+
+    // --- CANVAS OCR DÀNH RIÊNG CHO QUIZ ---
+    let qCanvas, qCtx, qDrawing = false, qStrokes = [], qCurrentStroke = [];
+    
+    function initQuizCanvas() {
+        if(currentApp !== 'jp') return;
+        qCanvas = document.getElementById('quiz-ocr-canvas');
+        qCanvas.width = qCanvas.offsetWidth || 300;
+        qCanvas.height = 120;
+        qCtx = qCanvas.getContext('2d');
+        qCtx.lineWidth = 4;
+        qCtx.lineCap = 'round';
+        qCtx.strokeStyle = '#0f172a';
+        qStrokes = [];
+        clearQuizCanvas();
+
+        qCanvas.onpointerdown = (e) => { 
+            e.preventDefault(); 
+            qDrawing = true; qCurrentStroke = []; 
+            let p = getPos(e, qCanvas); 
+            qCtx.beginPath(); qCtx.moveTo(p.x, p.y); qCurrentStroke.push([p.x, p.y]); 
+        };
+        qCanvas.onpointermove = (e) => { 
+            if(!qDrawing) return; 
+            e.preventDefault(); 
+            let p = getPos(e, qCanvas); 
+            qCtx.lineTo(p.x, p.y); qCtx.stroke(); qCurrentStroke.push([p.x, p.y]); 
+        };
+    }
+    
+    function clearQuizCanvas() { if(!qCtx || currentApp !== 'jp') return; qCtx.clearRect(0,0,qCanvas.width,qCanvas.height); qStrokes = []; document.getElementById('quiz-ocr-results').innerHTML = ''; }
+    
+    async function recognizeQuiz() {
+        if(!qStrokes.length || currentApp !== 'jp') return; 
+        if(!navigator.onLine) {
+            document.getElementById('quiz-ocr-results').innerHTML = '<span style="color:#e64a19; font-weight:bold;">Offline: Tính năng vẽ cần kết nối mạng.</span>';
+            return;
+        }
+        const ink = qStrokes.map(s => [s.map(p => p[0]), s.map(p => p[1]), []]);
+        try {
+            const reqBody = {
+                options: "enable_pre_space",
+                requests: [{ writing_guide: { writing_area_width: qCanvas.width, writing_area_height: qCanvas.height }, ink: ink, language: "ja" }]
+            };
+            const res = await fetch("https://inputtools.google.com/request?itc=ja-t-i0-handwrit&app=mobilesearch", { 
+                method: "POST", 
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(reqBody) 
+            });
+            const data = await res.json();
+            if(data[0] === "SUCCESS" && data[1] && data[1][0] && data[1][0][1]) {
+                document.getElementById('quiz-ocr-results').innerHTML = data[1][0][1].map(w => `<span class="ocr-word" onclick="document.getElementById('quiz-inp-answer').value += '${w}'; clearQuizCanvas()">${w}</span>`).join('');
+            }
+        } catch(e) {
+            document.getElementById('quiz-ocr-results').innerHTML = '<span style="color:#e64a19; font-weight:bold;">Lỗi mạng.</span>';
+        }
+    }
+    
+    // Khởi tạo Database khi trang web được tải
+    window.onload = () => {
+        initMusicDB();
+    };
+</script>
+</body>
+</html>
